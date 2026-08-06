@@ -1,0 +1,6 @@
+{
+  "name": "Toaster Lab",
+  "description": "Multimodal creative workbench and plan cartographer for the Haunted Toaster music video renderer",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

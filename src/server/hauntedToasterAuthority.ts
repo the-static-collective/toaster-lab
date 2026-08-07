@@ -29,7 +29,7 @@ export class CanonicalHauntedToasterAuthority implements HauntedToasterAuthority
     const candidate = Object.freeze(toVisualScoreCandidate(proposal));
     const validation = validateVisualScore(candidate);
 
-    if (!validation.ok) {
+    if (validation.ok === false) {
       return {
         status: "rejected",
         proposalId: proposal.id,

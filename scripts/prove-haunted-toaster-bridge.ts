@@ -118,7 +118,7 @@ const result = await hauntedToasterAuthority.admitAndResolve(
 assert.equal(result.status, "resolved", JSON.stringify(result));
 if (result.status !== "resolved") process.exit(1);
 
-assert.match(result.canonicalScoreAddress, /^sha256:[0-9a-f]{64}$/);
+assert.match(result.canonicalScoreAddress, /^htvs1_[0-9a-f]{64}$/);
 assert.ok(result.canonicalScore);
 assert.ok(result.resolvedTimeline);
 
@@ -128,7 +128,7 @@ const timeline = result.resolvedTimeline as {
   durationTicks?: number;
 };
 assert.equal(timeline.scoreAddress, result.canonicalScoreAddress);
-assert.match(String(timeline.timelineHash), /^sha256:[0-9a-f]{64}$/);
+assert.match(String(timeline.timelineHash), /^[0-9a-f]{64}$/);
 assert.equal(timeline.durationTicks, 60_000);
 
 console.log(JSON.stringify({

@@ -1,14 +1,15 @@
 /**
- * Toaster Lab - Deterministic Engine
- * Provider boundary: All validation, locking, interpolation, diffing,
- * coverage calculation, and receipt comparison are purely deterministic code.
+ * Toaster Lab - authoring utilities only.
+ *
+ * This module may support exploration, comparison, coverage, and proposal UX.
+ * It is not an execution engine. Haunted Toaster is the sole authority for
+ * canonical validation, addressing, resolution, and deterministic execution.
  */
 
 import {
   GenerationPlan,
   GarmentConstraint,
   LockState,
-  PlanProposal,
   RenderReceipt,
   CreativeCoverage,
   Combination,
@@ -73,68 +74,53 @@ export const LYRIC_BEHAVIORS: LyricBehaviorType[] = [
 
 export const TEMPORAL_DENSITIES: TemporalDensityType[] = ["low", "medium", "high", "intense"];
 
+/**
+ * Legacy Lab-side constraints retained only as creative guidance for the UI and
+ * proposal prompts. They must never be treated as canonical admission rules.
+ */
 export const DEFAULT_GARMENT_CONSTRAINT: GarmentConstraint = {
   id: "standard_haunted_garment_v1",
   name: "Haunted Garment Spec A",
   maxStiffnessLimit: 0.85,
   allowedFitModes: ["draped", "snug", "loose"],
-  seamStressCap: 120, // MPa
-  forbiddenColors: ["#00FF00", "#FFFF00"], // neon green & pure yellow strictly forbidden in Haunted render pipeline
+  seamStressCap: 120,
+  forbiddenColors: ["#00FF00", "#FFFF00"],
   forbiddenTopologies: [],
-  notes: "Ensures fabric physics does not burst vertex buffers or violate haunted dark aesthetic",
+  notes: "Authoring guidance only. Haunted Toaster owns canonical validation.",
 };
 
 /**
- * Validates plan against schema and garment constraints
+ * Inspect a proposal against Lab-side authoring guidance without changing it.
+ * Canonical acceptance or rejection must come from Haunted Toaster.
  */
-export function validatePlanAndEnforceConstraints(
+export function inspectAuthoringGuidance(
   plan: GenerationPlan,
   constraints: GarmentConstraint = DEFAULT_GARMENT_CONSTRAINT
-): { validPlan: GenerationPlan; violations: string[] } {
-  const violations: string[] = [];
-  const cloned = JSON.parse(JSON.stringify(plan)) as GenerationPlan;
+): string[] {
+  const warnings: string[] = [];
 
-  // Enforce stiffness
-  if (cloned.garmentParams.maxStiffness > constraints.maxStiffnessLimit) {
-    violations.push(
-      `Garment stiffness (${cloned.garmentParams.maxStiffness}) exceeded constraint max (${constraints.maxStiffnessLimit}). Clamped.`
-    );
-    cloned.garmentParams.maxStiffness = constraints.maxStiffnessLimit;
+  if (plan.garmentParams.maxStiffness > constraints.maxStiffnessLimit) {
+    warnings.push(`Garment stiffness ${plan.garmentParams.maxStiffness} exceeds authoring guidance ${constraints.maxStiffnessLimit}.`);
+  }
+  if (!constraints.allowedFitModes.includes(plan.garmentParams.fitMode)) {
+    warnings.push(`Fit mode '${plan.garmentParams.fitMode}' is outside current authoring guidance.`);
+  }
+  if (plan.garmentParams.seamStressLimit > constraints.seamStressCap) {
+    warnings.push(`Seam stress ${plan.garmentParams.seamStressLimit} exceeds authoring guidance ${constraints.seamStressCap}.`);
   }
 
-  // Enforce fit mode
-  if (!constraints.allowedFitModes.includes(cloned.garmentParams.fitMode)) {
-    violations.push(
-      `Fit mode '${cloned.garmentParams.fitMode}' forbidden. Reset to '${constraints.allowedFitModes[0]}'.`
-    );
-    cloned.garmentParams.fitMode = constraints.allowedFitModes[0] || "draped";
-  }
-
-  // Enforce seam stress
-  if (cloned.garmentParams.seamStressLimit > constraints.seamStressCap) {
-    violations.push(
-      `Seam stress limit (${cloned.garmentParams.seamStressLimit} MPa) exceeded cap (${constraints.seamStressCap} MPa). Clamped.`
-    );
-    cloned.garmentParams.seamStressLimit = constraints.seamStressCap;
-  }
-
-  // Enforce forbidden colors in palette
   const forbidden = constraints.forbiddenColors.map((c) => c.toUpperCase());
-  if (forbidden.includes(cloned.paletteLogic.primary.toUpperCase())) {
-    violations.push(`Primary color ${cloned.paletteLogic.primary} was forbidden. Replaced.`);
-    cloned.paletteLogic.primary = "#E2E8F0";
+  if (forbidden.includes(plan.paletteLogic.primary.toUpperCase())) {
+    warnings.push(`Primary color ${plan.paletteLogic.primary} is outside current authoring guidance.`);
   }
-  if (forbidden.includes(cloned.paletteLogic.secondary.toUpperCase())) {
-    violations.push(`Secondary color ${cloned.paletteLogic.secondary} was forbidden. Replaced.`);
-    cloned.paletteLogic.secondary = "#64748B";
+  if (forbidden.includes(plan.paletteLogic.secondary.toUpperCase())) {
+    warnings.push(`Secondary color ${plan.paletteLogic.secondary} is outside current authoring guidance.`);
   }
 
-  return { validPlan: cloned, violations };
+  return warnings;
 }
 
-/**
- * Applies locked state fields from a locked base plan onto a candidate proposal
- */
+/** Apply UI locks as an authoring operation. This does not canonicalize a plan. */
 export function applyLocks(
   targetPlan: GenerationPlan,
   lockedPlan: GenerationPlan | null,
@@ -156,9 +142,12 @@ export function applyLocks(
 }
 
 /**
- * Deterministic pseudo-random numbers based on seed
+ * Deterministic authoring reroll.
+ *
+ * This seed only selects proposal material. It does not define Haunted Toaster
+ * execution semantics or replace Haunted Toaster's canonical PRNG/resolver.
  */
-function seededRandom(seed: number): () => number {
+function seededAuthoringChoice(seed: number): () => number {
   let s = seed % 2147483647;
   if (s <= 0) s += 2147483646;
   return () => {
@@ -167,16 +156,13 @@ function seededRandom(seed: number): () => number {
   };
 }
 
-/**
- * Reroll a single axis deterministically
- */
 export function rerollAxis(
   currentPlan: GenerationPlan,
   axisKey: keyof GenerationPlan,
   seed: number,
   constraints: GarmentConstraint = DEFAULT_GARMENT_CONSTRAINT
-): { newPlan: GenerationPlan; mutationReason: string } {
-  const rng = seededRandom(seed + Date.now());
+): { newPlan: GenerationPlan; mutationReason: string; guidanceWarnings: string[] } {
+  const rng = seededAuthoringChoice(seed);
   const plan = JSON.parse(JSON.stringify(currentPlan)) as GenerationPlan;
   let mutationReason = "";
 
@@ -184,55 +170,54 @@ export function rerollAxis(
     case "topology": {
       const available = TOPOLOGIES.filter((t) => t !== plan.topology);
       const chosen = available[Math.floor(rng() * available.length)];
-      mutationReason = `Mutated topology axis from ${plan.topology} to ${chosen} via seed random seed index.`;
       plan.topology = chosen;
+      mutationReason = `Requested topology mutation from ${currentPlan.topology} to ${chosen}.`;
       break;
     }
     case "material": {
       const available = MATERIALS.filter((m) => m !== plan.material);
       const chosen = available[Math.floor(rng() * available.length)];
-      mutationReason = `Mutated material surface property from ${plan.material} to ${chosen}.`;
       plan.material = chosen;
+      mutationReason = `Requested material mutation from ${currentPlan.material} to ${chosen}.`;
       break;
     }
     case "motionGrammar": {
-      const available = MOTION_GRAMMARS.filter((mg) => mg !== plan.motionGrammar);
+      const available = MOTION_GRAMMARS.filter((m) => m !== plan.motionGrammar);
       const chosen = available[Math.floor(rng() * available.length)];
-      mutationReason = `Mutated motion choreography from ${plan.motionGrammar} to ${chosen}.`;
       plan.motionGrammar = chosen;
+      mutationReason = `Requested motion mutation from ${currentPlan.motionGrammar} to ${chosen}.`;
       break;
     }
     case "cameraGrammar": {
-      const available = CAMERA_GRAMMARS.filter((cg) => cg !== plan.cameraGrammar);
+      const available = CAMERA_GRAMMARS.filter((c) => c !== plan.cameraGrammar);
       const chosen = available[Math.floor(rng() * available.length)];
-      mutationReason = `Mutated camera lens trajectory from ${plan.cameraGrammar} to ${chosen}.`;
       plan.cameraGrammar = chosen;
+      mutationReason = `Requested camera mutation from ${currentPlan.cameraGrammar} to ${chosen}.`;
       break;
     }
     case "lyricBehavior": {
-      const available = LYRIC_BEHAVIORS.filter((lb) => lb !== plan.lyricBehavior);
+      const available = LYRIC_BEHAVIORS.filter((l) => l !== plan.lyricBehavior);
       const chosen = available[Math.floor(rng() * available.length)];
-      mutationReason = `Mutated lyric typography behavior from ${plan.lyricBehavior} to ${chosen}.`;
       plan.lyricBehavior = chosen;
+      mutationReason = `Requested lyric mutation from ${currentPlan.lyricBehavior} to ${chosen}.`;
       break;
     }
     case "temporalDensity": {
-      const available = TEMPORAL_DENSITIES.filter((td) => td !== plan.temporalDensity);
+      const available = TEMPORAL_DENSITIES.filter((d) => d !== plan.temporalDensity);
       const chosen = available[Math.floor(rng() * available.length)];
-      mutationReason = `Mutated temporal pacing density from ${plan.temporalDensity} to ${chosen}.`;
       plan.temporalDensity = chosen;
+      mutationReason = `Requested temporal-density mutation from ${currentPlan.temporalDensity} to ${chosen}.`;
       break;
     }
     case "garmentParams": {
-      const stiffness = Number((0.2 + rng() * (constraints.maxStiffnessLimit - 0.2)).toFixed(2));
-      const fit = constraints.allowedFitModes[Math.floor(rng() * constraints.allowedFitModes.length)];
+      const fit = constraints.allowedFitModes[Math.floor(rng() * constraints.allowedFitModes.length)] || plan.garmentParams.fitMode;
       plan.garmentParams = {
         ...plan.garmentParams,
-        maxStiffness: stiffness,
+        maxStiffness: Number((0.2 + rng() * 0.8).toFixed(2)),
         fitMode: fit,
         fabricMemory: Number((0.1 + rng() * 0.8).toFixed(2)),
       };
-      mutationReason = `Re-calculated garment physics parameters: stiffness=${stiffness}, fitMode=${fit}.`;
+      mutationReason = "Requested a new garment-parameter proposal from the declared authoring seed.";
       break;
     }
     case "paletteLogic": {
@@ -243,38 +228,31 @@ export function rerollAxis(
         { primary: "#052E16", secondary: "#10B981", accent: "#FACC15", background: "#022C22", mood: "bioluminescent_canopy" },
       ];
       const chosen = palettes[Math.floor(rng() * palettes.length)];
-      plan.paletteLogic = {
-        ...chosen,
-        shiftTrigger: plan.paletteLogic.shiftTrigger,
-      };
-      mutationReason = `Swapped color palette logic to mood '${chosen.mood}' (${chosen.primary} / ${chosen.secondary}).`;
+      plan.paletteLogic = { ...chosen, shiftTrigger: plan.paletteLogic.shiftTrigger };
+      mutationReason = `Requested palette mood '${chosen.mood}'.`;
       break;
     }
     default:
-      mutationReason = `No mutation handler for axis ${String(axisKey)}.`;
+      mutationReason = `No authoring mutation handler for axis ${String(axisKey)}.`;
   }
 
-  const { validPlan } = validatePlanAndEnforceConstraints(plan, constraints);
-  return { newPlan: validPlan, mutationReason };
+  return { newPlan: plan, mutationReason, guidanceWarnings: inspectAuthoringGuidance(plan, constraints) };
 }
 
 /**
- * Plan Breeding - Blend any two proposals deterministically
+ * Blend two plans as proposal material only. Result must pass through Haunted
+ * Toaster canonical admission before it can become executable state.
  */
 export function breedPlans(
   planA: GenerationPlan,
   planB: GenerationPlan,
-  blend: number, // 0.0 (100% A) to 1.0 (100% B)
+  blend: number,
   seed: number = 42
 ): GenerationPlan {
   const blendClamped = Math.max(0, Math.min(1, blend));
   const result = JSON.parse(JSON.stringify(planA)) as GenerationPlan;
-
-  // Metadata
   result.meta.title = `${planA.meta.title} × ${planB.meta.title} (${Math.round(blendClamped * 100)}% B)`;
   result.meta.seed = seed;
-
-  // Categorical discrete properties pick based on threshold
   result.topology = blendClamped < 0.5 ? planA.topology : planB.topology;
   result.material = blendClamped < 0.5 ? planA.material : planB.material;
   result.motionGrammar = blendClamped < 0.5 ? planA.motionGrammar : planB.motionGrammar;
@@ -282,7 +260,6 @@ export function breedPlans(
   result.lyricBehavior = blendClamped < 0.5 ? planA.lyricBehavior : planB.lyricBehavior;
   result.temporalDensity = blendClamped < 0.5 ? planA.temporalDensity : planB.temporalDensity;
 
-  // Continuous numeric parameters linearly interpolate
   const stiffA = planA.garmentParams?.maxStiffness ?? 0.5;
   const stiffB = planB.garmentParams?.maxStiffness ?? 0.5;
   const memA = planA.garmentParams?.fabricMemory ?? 0.5;
@@ -297,13 +274,11 @@ export function breedPlans(
     seamStressLimit: Math.round(seamA * (1 - blendClamped) + seamB * blendClamped),
   };
 
-  // Palette color blend or switch
   if (blendClamped < 0.3) {
     result.paletteLogic = JSON.parse(JSON.stringify(planA.paletteLogic));
   } else if (blendClamped > 0.7) {
     result.paletteLogic = JSON.parse(JSON.stringify(planB.paletteLogic));
   } else {
-    // Hybrid mood
     result.paletteLogic = {
       primary: planA.paletteLogic.primary,
       secondary: planB.paletteLogic.secondary,
@@ -314,13 +289,9 @@ export function breedPlans(
     };
   }
 
-  const { validPlan } = validatePlanAndEnforceConstraints(result);
-  return validPlan;
+  return result;
 }
 
-/**
- * Diff two plans and return differences
- */
 export function diffPlans(
   planA: GenerationPlan,
   planB: GenerationPlan
@@ -339,15 +310,10 @@ export function diffPlans(
     "garmentParams.fitMode",
   ];
 
-  return fields.map((f) => {
-    const valA = getNestedValue(planA, f);
-    const valB = getNestedValue(planB, f);
-    return {
-      field: f,
-      valA,
-      valB,
-      equal: JSON.stringify(valA) === JSON.stringify(valB),
-    };
+  return fields.map((field) => {
+    const valA = getNestedValue(planA, field);
+    const valB = getNestedValue(planB, field);
+    return { field, valA, valB, equal: JSON.stringify(valA) === JSON.stringify(valB) };
   });
 }
 
@@ -355,9 +321,6 @@ function getNestedValue(obj: any, path: string): any {
   return path.split(".").reduce((acc, part) => (acc && acc[part] !== undefined ? acc[part] : undefined), obj);
 }
 
-/**
- * Compare requested plan with executed receipt
- */
 export function compareReceiptWithPlan(
   plan: GenerationPlan,
   receipt: RenderReceipt
@@ -370,7 +333,6 @@ export function compareReceiptWithPlan(
   const deviations: ReceiptDeviation[] = [...receipt.deviations];
   const warnings: string[] = [...receipt.shaderWarnings];
 
-  // Compare key fields directly
   if (plan.topology !== receipt.executedPlan.topology) {
     deviations.push({
       field: "topology",
@@ -391,57 +353,35 @@ export function compareReceiptWithPlan(
     });
   }
 
-  const totalChecks = 10;
   const fallbackCount = deviations.filter((d) => d.severity === "fallback").length;
   const warningCount = deviations.filter((d) => d.severity === "warning").length;
-
   const matchScore = Math.max(0, Math.min(100, Math.round(100 - fallbackCount * 18 - warningCount * 8)));
 
-  return {
-    matchScore,
-    deviations,
-    warnings,
-    performance: receipt.performance,
-  };
+  return { matchScore, deviations, warnings, performance: receipt.performance };
 }
 
-/**
- * Compute Creative Coverage map from imported plans & receipts
- */
 export function computeCreativeCoverage(
   plans: GenerationPlan[],
   receipts: RenderReceipt[] = []
 ): CreativeCoverage {
   const allPlans = [...plans, ...receipts.map((r) => r.executedPlan)];
   const totalPlansAnalyzed = allPlans.length;
-
   const topologyPairsUsed: Record<string, number> = {};
   const paletteMotionPairsUsed: Record<string, number> = {};
   const temporalDensityDistribution: Record<string, number> = {};
   const comboCounts: Record<string, Combination> = {};
 
   allPlans.forEach((p) => {
-    // topology + material
     const topMat = `${p.topology}::${p.material}`;
     topologyPairsUsed[topMat] = (topologyPairsUsed[topMat] || 0) + 1;
-
-    // palette + motion
     const palMot = `${p.paletteLogic?.mood || "default"}::${p.motionGrammar}`;
     paletteMotionPairsUsed[palMot] = (paletteMotionPairsUsed[palMot] || 0) + 1;
-
-    // temporal density
     const td = p.temporalDensity || "medium";
     temporalDensityDistribution[td] = (temporalDensityDistribution[td] || 0) + 1;
 
-    // full combination
     const comboKey = `${p.topology}__${p.motionGrammar}__${p.material}`;
     if (!comboCounts[comboKey]) {
-      comboCounts[comboKey] = {
-        topology: p.topology,
-        motionGrammar: p.motionGrammar,
-        material: p.material,
-        count: 0,
-      };
+      comboCounts[comboKey] = { topology: p.topology, motionGrammar: p.motionGrammar, material: p.material, count: 0 };
     }
     comboCounts[comboKey].count += 1;
   });
@@ -449,9 +389,8 @@ export function computeCreativeCoverage(
   const combosArray = Object.values(comboCounts);
   const overusedCombinations = [...combosArray].sort((a, b) => b.count - a.count).slice(0, 5);
   const rareCombinations = [...combosArray].filter((c) => c.count <= 2).slice(0, 5);
-
-  // Compute unvisited legal regions
   const unvisitedRegions: UnvisitedRegion[] = [];
+
   for (const top of TOPOLOGIES) {
     for (const motion of MOTION_GRAMMARS) {
       for (const mat of MATERIALS) {
@@ -479,15 +418,9 @@ export function computeCreativeCoverage(
   };
 }
 
-/**
- * Get unvisited target for "Take me somewhere the Toaster has not gone yet"
- */
-export function getUnvisitedTarget(
-  coverage: CreativeCoverage,
-  seed: number
-): UnvisitedRegion {
+export function getUnvisitedTarget(coverage: CreativeCoverage, seed: number): UnvisitedRegion {
   if (coverage.unvisitedRegions.length > 0) {
-    const idx = seed % coverage.unvisitedRegions.length;
+    const idx = Math.abs(seed) % coverage.unvisitedRegions.length;
     return coverage.unvisitedRegions[idx];
   }
   return {

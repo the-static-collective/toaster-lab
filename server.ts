@@ -1,7 +1,7 @@
 /**
  * Toaster Lab Express Server
- * Handles API endpoints for GenerationPlan proposals, mutations, breeding, and coverage
- * Mounts Vite middleware for development and serves static build in production on port 3000
+ * Handles creative proposal authoring while delegating canonical execution law
+ * to Haunted Toaster.
  */
 
 import express from "express";
@@ -9,6 +9,7 @@ import path from "path";
 import dotenv from "dotenv";
 import { createServer as createViteServer } from "vite";
 import { generateProposals } from "./src/server/geminiProposer";
+import { hauntedToasterAuthority } from "./src/server/hauntedToasterAuthority";
 import {
   rerollAxis,
   breedPlans,
@@ -25,12 +26,11 @@ async function startServer() {
   app.use(express.json({ limit: "50mb" }));
   app.use(express.urlencoded({ extended: true, limit: "50mb" }));
 
-  // API Routes
   app.get("/api/health", (_req, res) => {
     res.json({ status: "ok", app: "Toaster Lab Workbench" });
   });
 
-  // Generate 3 plan proposals
+  // Generate proposal material only. Nothing returned here is executable yet.
   app.post("/api/toaster/analyze-and-propose", async (req, res) => {
     try {
       const proposals = await generateProposals(req.body);
@@ -41,19 +41,36 @@ async function startServer() {
     }
   });
 
-  // Reroll single axis
+  // Canonical boundary: proposal -> VisualScore admission/address -> ResolvedTimeline.
+  app.post("/api/toaster/admit-and-resolve", async (req, res) => {
+    try {
+      const { proposal, analysis, constraints, profile } = req.body;
+      const result = await hauntedToasterAuthority.admitAndResolve(
+        proposal,
+        analysis,
+        constraints,
+        profile,
+      );
+      res.status(result.status === "rejected" ? 422 : 200).json({
+        success: result.status !== "rejected",
+        result,
+      });
+    } catch (error: any) {
+      res.status(422).json({ success: false, error: error.message || "Canonical resolution failed" });
+    }
+  });
+
   app.post("/api/toaster/reroll-axis", (req, res) => {
     try {
       const { plan, axisKey, seed, garmentConstraint } = req.body;
       const constraints = garmentConstraint || DEFAULT_GARMENT_CONSTRAINT;
-      const { newPlan, mutationReason } = rerollAxis(plan, axisKey, seed, constraints);
-      res.json({ success: true, newPlan, mutationReason });
+      const { newPlan, mutationReason, guidanceWarnings } = rerollAxis(plan, axisKey, seed, constraints);
+      res.json({ success: true, newPlan, mutationReason, guidanceWarnings });
     } catch (error: any) {
       res.status(500).json({ success: false, error: error.message });
     }
   });
 
-  // Breed two plans
   app.post("/api/toaster/breed", (req, res) => {
     try {
       const { planA, planB, blend, seed } = req.body;
@@ -64,7 +81,6 @@ async function startServer() {
     }
   });
 
-  // Calculate coverage
   app.post("/api/toaster/coverage", (req, res) => {
     try {
       const { plans, receipts } = req.body;
@@ -75,7 +91,6 @@ async function startServer() {
     }
   });
 
-  // Vite middleware in dev vs static files in production
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
       server: { middlewareMode: true },

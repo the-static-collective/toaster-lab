@@ -32,62 +32,82 @@ export interface CreativeProposal {
   };
 }
 
-export interface VisualScoreDescriptor {
-  schemaVersion: string;
-  acceptedAxes: readonly string[];
+/**
+ * Haunted Toaster's currently published canonical VisualScore v1 boundary.
+ * This is a transport shape only: Toaster Lab does not validate it locally.
+ */
+export interface VisualScoreCandidate {
+  schema: "haunted-toaster/visual-score/v1";
+  seed: string;
+  prng: "xoshiro256**/splitmix64-v1";
+  topology: unknown;
+  motion: unknown;
+  palette: unknown;
+  material: unknown;
+  lyric: unknown;
+  camera: unknown;
+  temporalDensity: unknown;
+  influence: unknown;
 }
 
-export interface VisualScoreCandidate {
-  schemaVersion: string;
-  requestedAxes: Record<string, unknown>;
-  lineage?: string[];
-  seed?: number;
-  authoringProposalId: string;
-}
+const CANONICAL_SCORE_KEYS = [
+  "topology",
+  "motion",
+  "palette",
+  "material",
+  "lyric",
+  "camera",
+  "temporalDensity",
+  "influence",
+] as const;
 
 /**
- * Narrow vocabulary adapter only. This function does not validate, clamp,
- * canonicalize, address, resolve, or otherwise confer execution authority.
+ * Narrow vocabulary adapter only. It copies authoring intent into Haunted
+ * Toaster's published candidate envelope without validating, clamping,
+ * canonicalizing, addressing, resolving, or otherwise conferring authority.
  */
-export function toVisualScoreCandidate(
-  proposal: CreativeProposal,
-  canonicalSchemaDescriptor: VisualScoreDescriptor
-): VisualScoreCandidate {
-  const requestedAxes = Object.fromEntries(
-    Object.entries(proposal.requestedAxes).filter(([key]) =>
-      canonicalSchemaDescriptor.acceptedAxes.includes(key)
-    )
-  );
-
-  return {
-    schemaVersion: canonicalSchemaDescriptor.schemaVersion,
-    requestedAxes,
-    lineage: proposal.lineage ? [...proposal.lineage] : undefined,
-    seed: proposal.provenance.seed,
-    authoringProposalId: proposal.id,
+export function toVisualScoreCandidate(proposal: CreativeProposal): VisualScoreCandidate {
+  const axes = proposal.requestedAxes;
+  const candidate: Record<string, unknown> = {
+    schema: "haunted-toaster/visual-score/v1",
+    seed: String(proposal.provenance.seed ?? proposal.id),
+    prng: "xoshiro256**/splitmix64-v1",
   };
+
+  for (const key of CANONICAL_SCORE_KEYS) {
+    candidate[key] = axes[key];
+  }
+
+  return candidate as unknown as VisualScoreCandidate;
 }
+
+export type CanonicalValidationError = {
+  path: string;
+  code: string;
+  message: string;
+};
 
 export type CanonicalAdmissionResult =
   | {
       status: "rejected";
       proposalId: string;
-      candidate: VisualScoreCandidate;
-      reasons: readonly string[];
+      candidate: Readonly<VisualScoreCandidate>;
+      errors: readonly CanonicalValidationError[];
     }
   | {
       status: "accepted";
       proposalId: string;
-      candidate: VisualScoreCandidate;
+      candidate: Readonly<VisualScoreCandidate>;
+      canonicalScore: unknown;
+      canonicalJson: string;
       canonicalScoreAddress: string;
-      resolvedTimelineAddress: string;
     };
 
 /**
  * Boundary contract implemented by Haunted Toaster integration code.
- * Toaster Lab can submit candidates and display results, but cannot implement
- * canonical admission semantics locally.
+ * The implementation must delegate to Haunted Toaster's validateVisualScore()
+ * (and later resolve()) rather than reimplementing canonical law in the Lab.
  */
 export interface HauntedToasterAuthority {
-  admit(candidate: VisualScoreCandidate): Promise<CanonicalAdmissionResult>;
+  admit(proposal: CreativeProposal): Promise<CanonicalAdmissionResult>;
 }

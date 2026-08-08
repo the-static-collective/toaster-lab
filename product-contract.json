@@ -1,0 +1,72 @@
+{
+  "schema": "toaster-lab/product-contract/v1",
+  "product": "Crazy Slots",
+  "role": "proposal-appliance",
+  "primaryInputs": ["song", "art", "lyrics"],
+  "primaryAction": "generate-one-proposal",
+  "primaryOutput": "toaster-lab/proposal-transfer/v1",
+  "modelRole": "creative-proposal-only",
+  "modelMayOwn": [
+    "aesthetic association",
+    "metaphor",
+    "creative intent",
+    "proposal wording",
+    "high-level visual suggestion"
+  ],
+  "modelMustNotOwn": [
+    "canonical score address",
+    "resolved timeline",
+    "execution state",
+    "protocol validity",
+    "Haunted Toaster admission"
+  ],
+  "hauntedToasterOwns": [
+    "admission",
+    "canonical addressing",
+    "six-up diversity",
+    "mutation",
+    "locks",
+    "preview",
+    "timeline resolution",
+    "render"
+  ],
+  "ui": {
+    "chat": false,
+    "proposalGallery": false,
+    "proposalCountPerPull": 1,
+    "requiredSurfaces": [
+      "song slot",
+      "art slot",
+      "lyrics slot",
+      "lyric cleanup/timing status",
+      "creative controls",
+      "Crazy Slots trigger",
+      "export result"
+    ]
+  },
+  "lyrics": {
+    "mustPreserveText": true,
+    "mustNotInventMissingText": true,
+    "timingMustBeMonotonic": true,
+    "timingMustStayWithinAudioDuration": true,
+    "timingSources": ["provided", "derived", "estimated", "unknown"]
+  },
+  "requiredChecks": [
+    "npm run lint",
+    "npm run test:bridge",
+    "npm run test:transfer",
+    "npm run test:product-contract",
+    "npm run build"
+  ],
+  "verticalSlice": [
+    "load song",
+    "load art",
+    "load lyrics",
+    "preprocess",
+    "generate one creative proposal",
+    "validate model output",
+    "translate deterministically",
+    "export toaster-lab/proposal-transfer/v1"
+  ],
+  "stopCondition": "A real song, artwork, and lyric input can produce one validated downloadable proposal that Haunted Toaster accepts."
+}

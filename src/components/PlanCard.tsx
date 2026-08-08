@@ -7,7 +7,7 @@ import {
   GitBranch,
   FileCode,
   AlertTriangle,
-  Sparkles,
+  Download,
   Zap,
 } from "lucide-react";
 import { GenerationPlan, LockState, PlanProposal } from "../types/toaster";
@@ -20,6 +20,7 @@ interface PlanCardProps {
   onOpenEvidence: (proposal: PlanProposal, fieldKey: string) => void;
   onOpenBreed: (proposal: PlanProposal) => void;
   onOpenJson: (proposal: PlanProposal) => void;
+  onExportProposal: (proposal: PlanProposal) => void;
   isRerollingAxis?: string | null;
 }
 
@@ -31,6 +32,7 @@ export const PlanCard: React.FC<PlanCardProps> = ({
   onOpenEvidence,
   onOpenBreed,
   onOpenJson,
+  onExportProposal,
   isRerollingAxis,
 }) => {
   const { plan, proposalType, title, tagline, confidence, foreignElement } = proposal;
@@ -195,10 +197,10 @@ export const PlanCard: React.FC<PlanCardProps> = ({
       </div>
 
       {/* Card Actions Footer */}
-      <div className="p-3 bg-slate-900/90 border-t border-slate-800 flex items-center justify-between gap-2">
+      <div className="p-3 bg-slate-900/90 border-t border-slate-800 grid grid-cols-1 sm:grid-cols-3 gap-2">
         <button
           onClick={() => onOpenBreed(proposal)}
-          className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 font-mono text-xs border border-slate-700 transition-all hover:text-cyan-300"
+          className="flex items-center justify-center gap-1.5 px-3 py-1.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 font-mono text-xs border border-slate-700 transition-all hover:text-cyan-300"
         >
           <GitBranch className="w-3.5 h-3.5 text-cyan-400" />
           Breed Plan
@@ -206,10 +208,19 @@ export const PlanCard: React.FC<PlanCardProps> = ({
 
         <button
           onClick={() => onOpenJson(proposal)}
-          className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 font-mono text-xs border border-slate-700 transition-all hover:text-cyan-300"
+          className="flex items-center justify-center gap-1.5 px-3 py-1.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 font-mono text-xs border border-slate-700 transition-all hover:text-cyan-300"
         >
           <FileCode className="w-3.5 h-3.5 text-sky-400" />
           JSON Spec
+        </button>
+
+        <button
+          onClick={() => onExportProposal(proposal)}
+          title="Download a proposal-only transfer document for Haunted Toaster admission"
+          className="flex items-center justify-center gap-1.5 px-3 py-1.5 rounded bg-cyan-950/70 hover:bg-cyan-900/70 text-cyan-200 font-mono text-xs border border-cyan-800 transition-all"
+        >
+          <Download className="w-3.5 h-3.5 text-cyan-300" />
+          Export to Toaster
         </button>
       </div>
     </div>
@@ -224,6 +235,7 @@ interface ProposalsGridProps {
   onOpenEvidence: (proposal: PlanProposal, fieldKey: string) => void;
   onOpenBreed: (proposal: PlanProposal) => void;
   onOpenJson: (proposal: PlanProposal) => void;
+  onExportProposal: (proposal: PlanProposal) => void;
   isRerollingProposalId?: string | null;
   isRerollingAxisKey?: string | null;
 }
@@ -236,6 +248,7 @@ export const ProposalsGrid: React.FC<ProposalsGridProps> = ({
   onOpenEvidence,
   onOpenBreed,
   onOpenJson,
+  onExportProposal,
   isRerollingProposalId,
   isRerollingAxisKey,
 }) => {
@@ -263,6 +276,7 @@ export const ProposalsGrid: React.FC<ProposalsGridProps> = ({
           onOpenEvidence={onOpenEvidence}
           onOpenBreed={onOpenBreed}
           onOpenJson={onOpenJson}
+          onExportProposal={onExportProposal}
           isRerollingAxis={isRerollingProposalId === prop.id ? isRerollingAxisKey : null}
         />
       ))}

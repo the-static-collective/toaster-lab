@@ -36,6 +36,10 @@ import {
   getUnvisitedTarget,
   DEFAULT_GARMENT_CONSTRAINT,
 } from "./lib/toasterEngine";
+import {
+  toasterProposalFilename,
+  toToasterProposalTransferV1,
+} from "./lib/toasterProposalTransfer";
 
 export default function App() {
   const [seed, setSeed] = useState<number>(1042);
@@ -228,6 +232,25 @@ export default function App() {
     setActiveTab("studio");
   };
 
+  const handleExportProposal = (proposal: PlanProposal) => {
+    const transfer = toToasterProposalTransferV1(proposal, {
+      audio,
+      image,
+      lockState,
+    });
+    const blob = new Blob([JSON.stringify(transfer, null, 2)], {
+      type: "application/json",
+    });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = toasterProposalFilename(proposal);
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(url);
+  };
+
   // Save modified plan from JsonViewerModal
   const handleSaveModifiedPlan = (updatedPlan: GenerationPlan) => {
     if (activeJsonViewer?.proposalId) {
@@ -308,6 +331,7 @@ export default function App() {
                   proposalId: proposal.id,
                 })
               }
+              onExportProposal={handleExportProposal}
               isRerollingProposalId={isRerollingProposalId}
               isRerollingAxisKey={isRerollingAxisKey}
             />

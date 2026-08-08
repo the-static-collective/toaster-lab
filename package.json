@@ -10,7 +10,8 @@
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit",
     "test:bridge": "tsx scripts/prove-haunted-toaster-bridge.ts",
-    "test:transfer": "tsx scripts/prove-proposal-transfer.ts"
+    "test:transfer": "tsx scripts/prove-proposal-transfer.ts",
+    "test:product-contract": "tsx scripts/prove-product-contract.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
